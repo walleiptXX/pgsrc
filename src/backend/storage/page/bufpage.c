@@ -739,10 +739,13 @@ PageGetHeapFreeSpace(Page page)
 
 /*
  * PageIndexTupleDelete
+ * 删除Tuple
  *
  * This routine does the work of removing a tuple from an index page.
+ * 此方法的工作主要是删除掉tuple在page的索引(item)
  *
  * Unlike heap pages, we compact out the line pointer for the removed tuple.
+ *
  */
 void
 PageIndexTupleDelete(Page page, OffsetNumber offnum)
@@ -759,6 +762,7 @@ PageIndexTupleDelete(Page page, OffsetNumber offnum)
 	/*
 	 * As with PageRepairFragmentation, paranoia seems justified.
 	 */
+	/* 检查lower,upper,special的合理范围 */
 	if (phdr->pd_lower < SizeOfPageHeaderData ||
 		phdr->pd_lower > phdr->pd_upper ||
 		phdr->pd_upper > phdr->pd_special ||
@@ -767,7 +771,7 @@ PageIndexTupleDelete(Page page, OffsetNumber offnum)
 				(errcode(ERRCODE_DATA_CORRUPTED),
 				 errmsg("corrupted page pointers: lower = %u, upper = %u, special = %u",
 						phdr->pd_lower, phdr->pd_upper, phdr->pd_special)));
-
+	
 	nline = PageGetMaxOffsetNumber(page);
 	if ((int) offnum <= 0 || (int) offnum > nline)
 		elog(ERROR, "invalid index offnum: %u", offnum);
