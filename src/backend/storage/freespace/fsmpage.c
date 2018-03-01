@@ -170,6 +170,10 @@ restart:
 	 * Check the root first, and exit quickly if there's no leaf with enough
 	 * free space
 	 */
+     /*
+      * 检查二叉树中根节点的值是否>=minvalue，如果不满足返回-1
+      *
+      */
 	if (fsmpage->fp_nodes[0] < minvalue)
 		return -1;
 
@@ -178,6 +182,7 @@ restart:
 	 * sane.  (This also handles wrapping around when the prior call returned
 	 * the last slot on the page.)
 	 */
+     
 	target = fsmpage->fp_next_slot;
 	if (target < 0 || target >= LeafNodesPerPage)
 		target = 0;
@@ -224,6 +229,11 @@ restart:
 	 * to the right of (allowing for wraparound) our start point.
 	 *----------
 	 */
+     
+     /*
+      * 以树最右下节点为初始节点，不满足条件，则找其父节点
+      * nodeno为父节点no
+      */
 	nodeno = target;
 	while (nodeno > 0)
 	{
@@ -242,6 +252,12 @@ restart:
 	 * the tree. Descend to the bottom, following a path with enough free
 	 * space, preferring to move left if there's a choice.
 	 */
+    /*
+     *
+     * 根据nodeno查找其子节点(优先左子节点，再右子节点)，是否满足minvalue;
+     * 满足则以此子节点作为nodeno,向下查找子节点只到到达叶子节点
+     *
+     */
 	while (nodeno < NonLeafNodesPerPage)
 	{
 		int			childnodeno = leftchild(nodeno);
@@ -290,6 +306,7 @@ restart:
 	}
 
 	/* We're now at the bottom level, at a node with enough space. */
+    /* 根据nodeno获取slot值，slot从零开始0-4069 */
 	slot = nodeno - NonLeafNodesPerPage;
 
 	/*

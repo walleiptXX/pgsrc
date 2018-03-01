@@ -553,13 +553,6 @@ fsm_get_child(FSMAddress parent, uint16 slot)
  *
  * If the page doesn't exist, InvalidBuffer is returned, or if 'extend' is
  * true, the FSM file is extended.
- * 
- *
- * ¶ÁÈ¡Ò»¸öFSM Page
- * Èç¹ûpage²»´æÔÚ£¬¸ù¾İextend²ÎÊı·ÖÎªÁ½ÖÖÇé¿ö£º
- * extend=true:Èç¹ûFSMAddressËùÔÚblockNum´óÓÚÏÖÓĞFSMÖĞµÄËùÓĞblockNumÔòÀ©ÕÅ³öÒ»¸ö¿Õ°×block
- * extend=false:Ö±½Ó·µ»ØInvalidBuffer(²»¿ÉÓÃbuffer)
- *
  */
 static Buffer
 fsm_readbuf(Relation rel, FSMAddress addr, bool extend)
@@ -586,11 +579,10 @@ fsm_readbuf(Relation rel, FSMAddress addr, bool extend)
 	}
 
 	/* Handle requests beyond EOF */
-    /* FSMAddressËùÔÚµÄblokNum³¬¹ıÁËFSM block×ÜÁ¿ */
 	if (blkno >= rel->rd_smgr->smgr_fsm_nblocks)
 	{
 		if (extend)
-			fsm_extend(rel, blkno + 1); /* À©ÕÅ¿Õ°×block */
+			fsm_extend(rel, blkno + 1);
 		else
 			return InvalidBuffer;
 	}
@@ -602,7 +594,6 @@ fsm_readbuf(Relation rel, FSMAddress addr, bool extend)
 	 * so-called torn page problem on crash can lead to pages with corrupt
 	 * headers, for example.
 	 */
-     /* ¸ù¾İrelºÍblockNO¶ÁÈ¡pageÊı¾İ(buf) */
 	buf = ReadBufferExtended(rel, FSM_FORKNUM, blkno, RBM_ZERO_ON_ERROR, NULL);
 	if (PageIsNew(BufferGetPage(buf)))
 		PageInit(BufferGetPage(buf), BLCKSZ, 0);
@@ -704,7 +695,7 @@ fsm_set_and_search(Relation rel, FSMAddress addr, uint16 slot,
 
 /*
  * Search the tree for a heap page with at least min_cat of free space
- * ÔÚFSMÊ÷½á¹¹ÖĞ²éÕÒ¿ÕÏĞµÄheap page
+ * ‘ÔÚFSM‘Ê÷‘½á‘¹¹‘ÖĞ‘²é‘ÕÒ‘¿Õ‘ÏĞ‘µÄheap page
  */
 static BlockNumber
 fsm_search(Relation rel, uint8 min_cat)
@@ -719,15 +710,14 @@ fsm_search(Relation rel, uint8 min_cat)
 		uint8		max_avail = 0;
 
 		/* Read the FSM page. */
-        /* ¸ù¾İrelºÍFSMAddress»ñÈ¡FSMAddressËùÔÚpage */
-		buf = fsm_readbuf(rel, addr, false); //µÚÒ»´Î¶ÁÈ¡µÄÊÇFSM ÎÄ¼ş ROOT block£¬Âß¼­¿éºÅÎª£¨2,0£©£¬
+		buf = fsm_readbuf(rel, addr, false); //‘µÚ‘Ò»‘´Î‘¶Á‘È¡‘µÄ‘ÊÇFSM ‘ÎÄ‘¼ş ROOT block‘£¬‘Âß‘¼­‘¿é‘ºÅ‘Îª‘£¨2,0‘£©‘£¬
 
 		/* Search within the page */
 		if (BufferIsValid(buf))
 		{
 			LockBuffer(buf, BUFFER_LOCK_SHARE);
 			slot = fsm_search_avail(buf, min_cat,
-									(addr.level == FSM_BOTTOM_LEVEL), //×Ô¼ºµÄÄÄ¸öÏÂÊôÂú×ãÒªÇó¡£
+									(addr.level == FSM_BOTTOM_LEVEL), //‘×Ô‘¼º‘µÄ‘ÄÄ‘¸ö‘ÏÂ‘Êô‘Âú‘×ã‘Òª‘Çó‘¡£
 									false);
 			if (slot == -1)
 				max_avail = fsm_get_max_avail(BufferGetPage(buf));
@@ -743,11 +733,11 @@ fsm_search(Relation rel, uint8 min_cat)
 			 * bottom.
 			 */
 			if (addr.level == FSM_BOTTOM_LEVEL)
-				return fsm_get_heap_blk(addr, slot); //µ½´ïÁË×îµ×²ã£¬Ö±½Ó¿ÉÒÔ¼ÆËã³örelationµÄÄÄ¸ö¿éÂú×ãÒªÇó
+				return fsm_get_heap_blk(addr, slot); //‘µ½‘´ï‘ÁË‘×î‘µ×‘²ã‘£¬‘Ö±‘½Ó‘¿É‘ÒÔ‘¼Æ‘Ëã‘³örelation‘µÄ‘ÄÄ‘¸ö‘¿é‘Âú‘×ã‘Òª‘Çó
 
-			addr = fsm_get_child(addr, slot); //Î´µ½µ×²ã£¬ĞèÒªÔÙ´Î»ñÈ¡×Ô¼ºµÄÄÇ¸öÏÂÊôÂú×ãÒªÇó
+			addr = fsm_get_child(addr, slot); //‘Î´‘µ½‘µ×‘²ã‘£¬‘Ğè‘Òª‘ÔÙ‘´Î‘»ñ‘È¡‘×Ô‘¼º‘µÄ‘ÄÇ‘¸ö‘ÏÂ‘Êô‘Âú‘×ã‘Òª‘Çó
 		}
-		else if (addr.level == FSM_ROOT_LEVEL) //×î¸ß²ã±íÊ¾£¬×Ô¼ºÃ»ÓĞÒ»¸öÏÂÊôÂú×ãÒªÇó£¬¿ÉÒÔÖ±½ÓreturnÊ§°ÜÁË
+		else if (addr.level == FSM_ROOT_LEVEL) //‘×î‘¸ß‘²ã‘±í‘Ê¾‘£¬‘×Ô‘¼º‘Ã»‘ÓĞ‘Ò»‘¸ö‘ÏÂ‘Êô‘Âú‘×ã‘Òª‘Çó‘£¬‘¿É‘ÒÔ‘Ö±‘½Óreturn‘Ê§‘°Ü‘ÁË
 		{
 			/*
 			 * At the root, failure means there's no page with enough free
@@ -755,8 +745,8 @@ fsm_search(Relation rel, uint8 min_cat)
 			 */
 			return InvalidBlockNumber;
 		}
-		else //×î¸ß²ã±íÊ¾ÓĞ×Ô¼ºµÄÏÂÊô¿ÉÒÔÂú×ã£¬¿ÉÊÇÍùÏÂÕÒµÄ¹ı³ÌÖĞÈ´ÕÒ²»µ½Âú×ãÒªÇóµÄ£¬
-         //Õâ±íÊ¾¸ß²ãÕÆÎÕµÄĞÅÏ¢ºÍÏÂÊôµÄÊµ¼ÊÇé¿ö²»·ûºÏ£¬ĞèÒªÖØĞÂÕûÀíĞÅÏ¢¡£        
+		else //‘×î‘¸ß‘²ã‘±í‘Ê¾‘ÓĞ‘×Ô‘¼º‘µÄ‘ÏÂ‘Êô‘¿É‘ÒÔ‘Âú‘×ã‘£¬‘¿É‘ÊÇ‘Íù‘ÏÂ‘ÕÒ‘µÄ‘¹ı‘³Ì‘ÖĞ‘È´‘ÕÒ‘²»‘µ½‘Âú‘×ã‘Òª‘Çó‘µÄ‘£¬
+         //‘Õâ‘±í‘Ê¾‘¸ß‘²ã‘ÕÆ‘ÎÕ‘µÄ‘ĞÅ‘Ï¢‘ºÍ‘ÏÂ‘Êô‘µÄ‘Êµ‘¼Ê‘Çé‘¿ö‘²»‘·û‘ºÏ‘£¬‘Ğè‘Òª‘ÖØ‘ĞÂ‘Õû‘Àí‘ĞÅ‘Ï¢‘¡£        
 		{
 			uint16		parentslot;
 			FSMAddress	parent;
