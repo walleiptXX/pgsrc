@@ -163,8 +163,8 @@ fsm_get_max_avail(Page page)
  */
  /*
   * 在FSM Page中搜索需要的空闲空间
-  * @buffer：FSM Page
-  * @minValue：需要的内存空间 
+  * @buffer FSM Page
+  * 
   *
   */
 int

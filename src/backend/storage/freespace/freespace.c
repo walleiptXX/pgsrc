@@ -505,6 +505,7 @@ fsm_get_location(BlockNumber heapblk, uint16 *slot)
 
 /*
  * Return the heap block number corresponding to given location in the FSM.
+ * 返回heap block 位置
  */
 static BlockNumber
 fsm_get_heap_blk(FSMAddress addr, uint16 slot)
@@ -534,6 +535,7 @@ fsm_get_parent(FSMAddress child, uint16 *slot)
 /*
  * Given a logical address of a parent page and a slot number, get the
  * logical address of the corresponding child page.
+ * 计算出子FSM page
  */
 static FSMAddress
 fsm_get_child(FSMAddress parent, uint16 slot)
@@ -553,12 +555,7 @@ fsm_get_child(FSMAddress parent, uint16 slot)
  *
  * If the page doesn't exist, InvalidBuffer is returned, or if 'extend' is
  * true, the FSM file is extended.
- * 
- *
- * 读取一个FSM Page
- * 如果page不存在，根据extend参数分为两种情况：
- * extend=true:如果FSMAddress所在blockNum大于现有FSM中的所有blockNum则扩张出一个空白block
- * extend=false:直接返回InvalidBuffer(不可用buffer)
+ * 读取一个FSM page
  *
  */
 static Buffer
@@ -586,11 +583,11 @@ fsm_readbuf(Relation rel, FSMAddress addr, bool extend)
 	}
 
 	/* Handle requests beyond EOF */
-    /* FSMAddress所在的blokNum超过了FSM block总量 */
+	/* 如果FSM blokNO比FSM整个blok数量大则扩张一个新Page出来 */
 	if (blkno >= rel->rd_smgr->smgr_fsm_nblocks)
 	{
 		if (extend)
-			fsm_extend(rel, blkno + 1); /* 扩张空白block */
+			fsm_extend(rel, blkno + 1);
 		else
 			return InvalidBuffer;
 	}
@@ -602,7 +599,6 @@ fsm_readbuf(Relation rel, FSMAddress addr, bool extend)
 	 * so-called torn page problem on crash can lead to pages with corrupt
 	 * headers, for example.
 	 */
-     /* 根据rel和blockNO读取page数据(buf) */
 	buf = ReadBufferExtended(rel, FSM_FORKNUM, blkno, RBM_ZERO_ON_ERROR, NULL);
 	if (PageIsNew(BufferGetPage(buf)))
 		PageInit(BufferGetPage(buf), BLCKSZ, 0);
@@ -704,7 +700,7 @@ fsm_set_and_search(Relation rel, FSMAddress addr, uint16 slot,
 
 /*
  * Search the tree for a heap page with at least min_cat of free space
- * 在FSM树结构中查找空闲的heap page
+ * 通过fsm搜索空闲的heap page
  */
 static BlockNumber
 fsm_search(Relation rel, uint8 min_cat)
@@ -719,15 +715,16 @@ fsm_search(Relation rel, uint8 min_cat)
 		uint8		max_avail = 0;
 
 		/* Read the FSM page. */
-        /* 根据rel和FSMAddress获取FSMAddress所在page */
-		buf = fsm_readbuf(rel, addr, false); //第一次读取的是FSM 文件 ROOT block，逻辑块号为（2,0），
+		/* 根据rel和addr读取FSM page，buf即FSM page的内容 */
+		buf = fsm_readbuf(rel, addr, false);
 
 		/* Search within the page */
+		/* 在FSM page中搜索可用的slot; slot=-1无可用槽 */
 		if (BufferIsValid(buf))
 		{
 			LockBuffer(buf, BUFFER_LOCK_SHARE);
 			slot = fsm_search_avail(buf, min_cat,
-									(addr.level == FSM_BOTTOM_LEVEL), //自己的哪个下属满足要求。
+									(addr.level == FSM_BOTTOM_LEVEL),
 									false);
 			if (slot == -1)
 				max_avail = fsm_get_max_avail(BufferGetPage(buf));
@@ -742,21 +739,29 @@ fsm_search(Relation rel, uint8 min_cat)
 			 * Descend the tree, or return the found block if we're at the
 			 * bottom.
 			 */
+			/*
+			 * 到达最顶层则直接返回heap page
+			 */
 			if (addr.level == FSM_BOTTOM_LEVEL)
-				return fsm_get_heap_blk(addr, slot); //到达了最底层，直接可以计算出relation的哪个块满足要求
-
-			addr = fsm_get_child(addr, slot); //未到底层，需要再次获取自己的那个下属满足要求
+				return fsm_get_heap_blk(addr, slot);
+			
+			/*
+			 * 未到树底部，继续查找子block
+			 */
+			addr = fsm_get_child(addr, slot);
 		}
-		else if (addr.level == FSM_ROOT_LEVEL) //最高层表示，自己没有一个下属满足要求，可以直接return失败了
+		else if (addr.level == FSM_ROOT_LEVEL)
 		{
 			/*
 			 * At the root, failure means there's no page with enough free
 			 * space in the FSM. Give up.
 			 */
+			/*
+			 * slot=-1 && level到达底部，则没找到可用slot
+			 */
 			return InvalidBlockNumber;
 		}
-		else //最高层表示有自己的下属可以满足，可是往下找的过程中却找不到满足要求的，
-         //这表示高层掌握的信息和下属的实际情况不符合，需要重新整理信息。        
+		else
 		{
 			uint16		parentslot;
 			FSMAddress	parent;

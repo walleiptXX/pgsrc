@@ -54,7 +54,7 @@ typedef FSMPageData *FSMPage;
 
 /* slot数量(非叶子节点-1,) */
 #define NonLeafNodesPerPage (BLCKSZ / 2 - 1)
-/* 叶子节点数量 */
+/*  */
 #define LeafNodesPerPage (NodesPerPage - NonLeafNodesPerPage)
 
 /*
