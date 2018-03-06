@@ -454,6 +454,7 @@ fsm_space_needed_to_cat(Size needed)
 
 /*
  * Returns the physical block number of a FSM page
+ * 根据FSMAddress计算并返回FSM page中的物理blockno
  */
 static BlockNumber
 fsm_logical_to_physical(FSMAddress addr)
@@ -583,7 +584,7 @@ fsm_readbuf(Relation rel, FSMAddress addr, bool extend)
 	}
 
 	/* Handle requests beyond EOF */
-	/*  */
+	/* 如果FSM blokNO比FSM整个blok数量大则扩张一个新Page出来 */
 	if (blkno >= rel->rd_smgr->smgr_fsm_nblocks)
 	{
 		if (extend)

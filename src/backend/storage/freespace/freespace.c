@@ -454,6 +454,7 @@ fsm_space_needed_to_cat(Size needed)
 
 /*
  * Returns the physical block number of a FSM page
+ * 根据FSMAddress计算并返回FSM page中的blockno
  */
 static BlockNumber
 fsm_logical_to_physical(FSMAddress addr)

@@ -696,7 +696,6 @@ ReadBufferWithoutRelcache(RelFileNode rnode, ForkNumber forkNum,
 
 /*
  * ReadBuffer_common -- common logic for all ReadBuffer variants
- * 读取buffer的通用逻辑
  *
  * *hit is set to true if the request was satisfied from shared buffer cache.
  * 如果在shared buffer中有相关数据这hit设置为true
